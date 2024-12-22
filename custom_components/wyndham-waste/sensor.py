@@ -24,31 +24,38 @@ def fetch_waste_info(propnum):
         "radius": "3000",
         "mapfeatures": "",
     }
-    response = requests.get(BASE_URL, params=params)
-    if response.status_code != 200:
-        _LOGGER.error("Error fetching waste info: %s", response.status_code)
+    try:
+        response = requests.get(BASE_URL, params=params)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        _LOGGER.error("Error fetching waste info: %s", e)
         return None
 
+    _LOGGER.debug("Raw response: %s", response.text)
     data = {}
     for key, pattern in PATTERNS.items():
         match = re.search(pattern, response.text)
         if match:
             data[key] = match.group(1)
+    _LOGGER.debug("Parsed waste data: %s", data)
     return data
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Wyndham Waste sensors."""
+    _LOGGER.debug("Setting up Wyndham Waste platform...")
     propnum = config.get("propnum")
     if not propnum:
         _LOGGER.error("Property number (propnum) is required.")
         return
 
     waste_data = WasteData(propnum)
-    add_entities([
+    sensors = [
         WasteSensor(waste_data, "garbage"),
         WasteSensor(waste_data, "green_waste"),
         WasteSensor(waste_data, "recycling"),
-    ])
+    ]
+    add_entities(sensors, True)
+    _LOGGER.debug("Added sensors: %s", sensors)
 
 class WasteData:
     """Class to manage fetching waste data."""
@@ -59,8 +66,13 @@ class WasteData:
 
     @Throttle(UPDATE_INTERVAL)
     def update(self):
-        """Update waste collection data."""
-        self._data = fetch_waste_info(self._propnum)
+        """Fetch new data for the sensor."""
+        _LOGGER.debug("Updating sensor: %s", self.name)
+        self._waste_data.update()
+        if self._waste_data.data:
+            self._state = self._waste_data.data.get(self._sensor_type)
+            _LOGGER.debug("Updated state for %s: %s", self.name, self._state)
+    
 
     @property
     def data(self):
