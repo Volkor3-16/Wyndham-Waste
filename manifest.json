@@ -1,0 +1,9 @@
+{
+    "domain": "wyndham_waste",
+    "name": "Wyndham Waste Collection",
+    "version": "0.1.0",
+    "documentation": "https://git.volkor.me/Volkor/wyndham-waste",
+    "dependencies": [],
+    "codeowners": ["@Volkor"],
+    "requirements": ["requests"]
+  }
